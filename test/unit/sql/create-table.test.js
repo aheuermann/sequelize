@@ -1,7 +1,7 @@
 'use strict';
 
-const Support   = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+const Support   = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   expectsql = Support.expectsql,
   current   = Support.sequelize,
   sql       = current.dialect.QueryGenerator,
@@ -21,6 +21,7 @@ describe(Support.getTestDialectTeaser('SQL'), () => {
         expectsql(sql.createTableQuery(FooUser.getTableName(), sql.attributesToSQL(FooUser.rawAttributes), { }), {
           sqlite: 'CREATE TABLE IF NOT EXISTS `foo.users` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `mood` TEXT);',
           postgres: 'CREATE TABLE IF NOT EXISTS "foo"."users" ("id"   SERIAL , "mood" "foo"."enum_users_mood", PRIMARY KEY ("id"));',
+          mariadb: "CREATE TABLE IF NOT EXISTS `foo`.`users` (`id` INTEGER NOT NULL auto_increment , `mood` ENUM('happy', 'sad'), PRIMARY KEY (`id`)) ENGINE=InnoDB;",
           mysql: "CREATE TABLE IF NOT EXISTS `foo.users` (`id` INTEGER NOT NULL auto_increment , `mood` ENUM('happy', 'sad'), PRIMARY KEY (`id`)) ENGINE=InnoDB;",
           mssql: "IF OBJECT_ID('[foo].[users]', 'U') IS NULL CREATE TABLE [foo].[users] ([id] INTEGER NOT NULL IDENTITY(1,1) , [mood] VARCHAR(255) CHECK ([mood] IN(N'happy', N'sad')), PRIMARY KEY ([id]));"
         });
@@ -44,11 +45,12 @@ describe(Support.getTestDialectTeaser('SQL'), () => {
       }).schema('bar');
 
       BarProject.belongsTo(BarUser, { foreignKey: 'user_id' });
-      
+
       it('references right schema when adding foreign key #9029', () => {
         expectsql(sql.createTableQuery(BarProject.getTableName(), sql.attributesToSQL(BarProject.rawAttributes), { }), {
           sqlite: 'CREATE TABLE IF NOT EXISTS `bar.projects` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `user_id` INTEGER REFERENCES `bar.users` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE);',
           postgres: 'CREATE TABLE IF NOT EXISTS "bar"."projects" ("id"   SERIAL , "user_id" INTEGER REFERENCES "bar"."users" ("id") ON DELETE NO ACTION ON UPDATE CASCADE, PRIMARY KEY ("id"));',
+          mariadb: 'CREATE TABLE IF NOT EXISTS `bar`.`projects` (`id` INTEGER NOT NULL auto_increment , `user_id` INTEGER, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `bar`.`users` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE) ENGINE=InnoDB;',
           mysql: 'CREATE TABLE IF NOT EXISTS `bar.projects` (`id` INTEGER NOT NULL auto_increment , `user_id` INTEGER, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `bar.users` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE) ENGINE=InnoDB;',
           mssql: 'IF OBJECT_ID(\'[bar].[projects]\', \'U\') IS NULL CREATE TABLE [bar].[projects] ([id] INTEGER NOT NULL IDENTITY(1,1) , [user_id] INTEGER NULL, PRIMARY KEY ([id]), FOREIGN KEY ([user_id]) REFERENCES [bar].[users] ([id]) ON DELETE NO ACTION);'
         });
@@ -70,11 +72,12 @@ describe(Support.getTestDialectTeaser('SQL'), () => {
       }, {
         timestamps: false
       });
-      
+
       it('references on primary key #9461', () => {
         expectsql(sql.createTableQuery(Image.getTableName(), sql.attributesToSQL(Image.rawAttributes), { }), {
           sqlite: 'CREATE TABLE IF NOT EXISTS `images` (`id` INTEGER PRIMARY KEY AUTOINCREMENT REFERENCES `files` (`id`));',
           postgres: 'CREATE TABLE IF NOT EXISTS "images" ("id"  SERIAL  REFERENCES "files" ("id"), PRIMARY KEY ("id"));',
+          mariadb: 'CREATE TABLE IF NOT EXISTS `images` (`id` INTEGER auto_increment , PRIMARY KEY (`id`), FOREIGN KEY (`id`) REFERENCES `files` (`id`)) ENGINE=InnoDB;',
           mysql: 'CREATE TABLE IF NOT EXISTS `images` (`id` INTEGER auto_increment , PRIMARY KEY (`id`), FOREIGN KEY (`id`) REFERENCES `files` (`id`)) ENGINE=InnoDB;',
           mssql: 'IF OBJECT_ID(\'[images]\', \'U\') IS NULL CREATE TABLE [images] ([id] INTEGER IDENTITY(1,1) , PRIMARY KEY ([id]), FOREIGN KEY ([id]) REFERENCES [files] ([id]));'
         });

@@ -1,12 +1,10 @@
 'use strict';
 
-const Support   = require(__dirname + '/../support'),
+const sinon = require('sinon'),
+  Support = require('../support'),
   DataTypes = require('../../../lib/data-types'),
   expectsql = Support.expectsql,
-  sinon = require('sinon'),
-  current   = Support.sequelize,
-  Promise = current.Promise;
-
+  current = Support.sequelize;
 
 if (current.dialect.name !== 'sqlite') {
   describe(Support.getTestDialectTeaser('SQL'), () => {
@@ -24,10 +22,7 @@ if (current.dialect.name !== 'sqlite') {
       }, { timestamps: false });
 
       before(function() {
-
-        this.stub = sinon.stub(current, 'query').callsFake(sql => {
-          return Promise.resolve(sql);
-        });
+        this.stub = sinon.stub(current, 'query').resolvesArg(0);
       });
 
       beforeEach(function() {
@@ -45,6 +40,7 @@ if (current.dialect.name !== 'sqlite') {
         }).then(sql => {
           expectsql(sql, {
             mssql: 'ALTER TABLE [users] ALTER COLUMN [level_id] FLOAT NOT NULL;',
+            mariadb: 'ALTER TABLE `users` CHANGE `level_id` `level_id` FLOAT NOT NULL;',
             mysql: 'ALTER TABLE `users` CHANGE `level_id` `level_id` FLOAT NOT NULL;',
             postgres: 'ALTER TABLE "users" ALTER COLUMN "level_id" SET NOT NULL;ALTER TABLE "users" ALTER COLUMN "level_id" DROP DEFAULT;ALTER TABLE "users" ALTER COLUMN "level_id" TYPE FLOAT;'
           });
@@ -63,6 +59,7 @@ if (current.dialect.name !== 'sqlite') {
         }).then(sql => {
           expectsql(sql, {
             mssql: 'ALTER TABLE [users] ADD FOREIGN KEY ([level_id]) REFERENCES [level] ([id]) ON DELETE CASCADE;',
+            mariadb: 'ALTER TABLE `users` ADD FOREIGN KEY (`level_id`) REFERENCES `level` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;',
             mysql: 'ALTER TABLE `users` ADD FOREIGN KEY (`level_id`) REFERENCES `level` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;',
             postgres: 'ALTER TABLE "users"  ADD FOREIGN KEY ("level_id") REFERENCES "level" ("id") ON DELETE CASCADE ON UPDATE CASCADE;'
           });

@@ -7,6 +7,7 @@ const sequelize = new Sequelize('database', 'username', 'password', {
   dialect: 'mysql'
 });
 ```
+
 This will save the passed database credentials and provide all further methods.
 
 Furthermore you can specify a non-default host/port:
@@ -57,14 +58,14 @@ const sequelize = new Sequelize('database', 'username', 'password', {
   // for postgres, you can also specify an absolute path to a directory
   // containing a UNIX socket to connect over
   // host: '/sockets/psql_sockets'.
- 
+
   // custom port; default: dialect default
   port: 12345,
- 
+
   // custom protocol; default: 'tcp'
   // postgres only, useful for Heroku
   protocol: null,
- 
+
   // disable logging; default: console.log
   logging: false,
 
@@ -76,25 +77,26 @@ const sequelize = new Sequelize('database', 'username', 'password', {
     supportBigNumbers: true,
     bigNumberStrings: true
   },
- 
+
   // the storage engine for sqlite
   // - default ':memory:'
   storage: 'path/to/database.sqlite',
- 
+
   // disable inserting undefined values as NULL
   // - default: false
   omitNull: true,
- 
+
   // a flag for using a native library or not.
   // in the case of 'pg' -- set this to true will allow SSL support
   // - default: false
   native: true,
- 
+
   // Specify options, which are used when sequelize.define is called.
   // The following example:
   //   define: { timestamps: false }
   // is basically the same as:
-  //   sequelize.define(name, attributes, { timestamps: false })
+  //   Model.init(attributes, { timestamps: false });
+  //   sequelize.define(name, attributes, { timestamps: false });
   // so defining the timestamps for each model will be not necessary
   define: {
     underscored: false,
@@ -105,10 +107,10 @@ const sequelize = new Sequelize('database', 'username', 'password', {
     },
     timestamps: true
   },
- 
+
   // similar for sync: you can define this to always force sync for models
   sync: { force: true },
- 
+
   // pool configuration used to pool database connections
   pool: {
     max: 5,
@@ -156,11 +158,11 @@ Each `write` or `useMaster: true` query will use write pool. For `SELECT` read p
 
 ## Dialects
 
-With the release of Sequelize `1.6.0`, the library got independent from specific dialects. This means, that you'll have to add the respective connector library to your project yourself.
+With the release of Sequelize `1.6.0`, the library got independent from specific dialects. This means, that you'll have to install the respective connector library to your project yourself.
 
 ### MySQL
 
-In order to get Sequelize working nicely together with MySQL, you'll need to install`mysql2@^1.0.0-rc.10`or higher. Once that's done you can use it like this:
+In order to get Sequelize working nicely together with MySQL, you'll need to install`mysql2@^1.5.2`or higher. Once that's done you can use it like this:
 
 ```js
 const sequelize = new Sequelize('database', 'username', 'password', {
@@ -170,17 +172,33 @@ const sequelize = new Sequelize('database', 'username', 'password', {
 
 **Note:** You can pass options directly to dialect library by setting the
 `dialectOptions` parameter. See [Options][0]
-for examples (currently only mysql is supported).
+
+### MariaDB
+
+Library for MariaDB is `mariadb`.
+
+```js
+const sequelize = new Sequelize('database', 'username', 'password', {
+  dialect: 'mariadb',
+  dialectOptions: {connectTimeout: 1000} // mariadb connector option
+})
+```
+
+or using connection String:
+
+```js
+const sequelize = new Sequelize('mariadb://user:password@example.com:9821/database')
+```
 
 ### SQLite
 
-For SQLite compatibility you'll need`sqlite3@~3.0.0`. Configure Sequelize like this:
+For SQLite compatibility you'll need`sqlite3@^4.0.0`. Configure Sequelize like this:
 
 ```js
 const sequelize = new Sequelize('database', 'username', 'password', {
   // sqlite! now!
   dialect: 'sqlite',
- 
+
   // the storage engine for sqlite
   // - default ':memory:'
   storage: 'path/to/database.sqlite'
@@ -196,7 +214,7 @@ const sequelize = new Sequelize('sqlite:relativePath/dbname.db')
 
 ### PostgreSQL
 
-The library for PostgreSQL is`pg@^5.0.0 || ^6.0.0` You'll just need to define the dialect:
+The library for PostgreSQL is`pg@^7.0.0` You'll just need to define the dialect:
 
 ```js
 const sequelize = new Sequelize('database', 'username', 'password', {
@@ -220,7 +238,7 @@ const sequelize = new Sequelize('database', 'username', 'password', {
 
 ### MSSQL
 
-The library for MSSQL is`tedious@^1.7.0` You'll just need to define the dialect:
+The library for MSSQL is`tedious@^6.0.0` You'll just need to define the dialect:
 
 ```js
 const sequelize = new Sequelize('database', 'username', 'password', {
@@ -260,7 +278,7 @@ sequelize
 sequelize
   .query('SELECT 1', {
     // A function (or false) for logging your queries
-    // Will get called for every SQL query that gets send
+    // Will get called for every SQL query that gets sent
     // to the server.
     logging: console.log,
 
@@ -290,8 +308,8 @@ named parameters (starting with `:`), or unnamed, represented by a ?
 
 The syntax used depends on the replacements option passed to the function:
 
-* If an array is passed, `?` will be replaced in the order that they appear in the array
-* If an object is passed, `:key` will be replaced with the keys from that object.
+- If an array is passed, `?` will be replaced in the order that they appear in the array
+- If an object is passed, `:key` will be replaced with the keys from that object.
 If the object contains keys not found in the query or vice versa, an exception
 will be thrown.
 
@@ -333,10 +351,9 @@ sequelize.query('select 1 as `foo.bar.baz`').then(rows => {
 })
 ```
 
-
-[0]: /docs/latest/usage#options
-[1]: /manual/tutorial/models-definition.html#configuration
+[0]: /manual/usage.html#options
+[1]: /manual/models-definition.html#configuration
 [2]: /class/lib/sequelize.js~Sequelize.html
-[3]: /manual/tutorial/transactions.html
+[3]: /manual/transactions.html
 [4]: /variable/index.html#static-variable-QueryTypes
 [5]: /class/lib/sequelize.js~Sequelize.html#instance-method-query
