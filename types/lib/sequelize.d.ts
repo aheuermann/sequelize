@@ -42,6 +42,12 @@ export interface SyncOptions extends Logging {
   force?: boolean;
 
   /**
+   * If alter is true, each DAO will do ALTER TABLE ... CHANGE ...
+   * Alters tables to fit models. Not recommended for production use. Deletes data in columns that were removed or had their type changed in the model.
+   */
+  alter?: boolean;
+
+  /**
    * Match a regex against the database name before syncing, a safety check for cases where force: true is
    * used in tests but not live code
    */
@@ -51,6 +57,16 @@ export interface SyncOptions extends Logging {
    * The schema that the tables should be created in. This can be overridden for each table in sequelize.define
    */
   schema?: string;
+  
+   /**
+   * An optional parameter to specify the schema search_path (Postgres only)
+   */
+  searchPath?: string;
+  
+   /**
+   * If hooks is true then beforeSync, afterSync, beforeBulkSync, afterBulkSync hooks will be called
+   */
+  hooks?: boolean;
 }
 
 export interface DefaultSetOptions {}
@@ -115,6 +131,7 @@ export interface OperatorsAliases {
  */
 export interface Config {
   readonly database: string;
+  readonly dialectModule?: object;
   readonly host?: string;
   readonly port?: string;
   readonly username: string;
@@ -154,6 +171,15 @@ export interface Options extends Logging {
    * @default 'mysql'
    */
   dialect?: Dialect;
+
+  /**
+   * If specified, will use the provided module as the dialect.
+   *
+   * @example
+   * `dialectModule: require('@myorg/tedious'),`
+   */
+  dialectModule?: object;
+
 
   /**
    * If specified, load the dialect library from this path. For example, if you want to use pg.js instead of
@@ -303,7 +329,16 @@ export interface Options extends Logging {
    *
    * @default all aliases
    */
-  operatorsAliases?: OperatorsAliases | false;
+  operatorsAliases?: OperatorsAliases;
+
+
+  /**
+   * The PostgreSQL `standard_conforming_strings` session parameter. Set to `false` to not set the option.
+   * WARNING: Setting this to false may expose vulnerabilities and is not recommended!
+   *
+   * @default true
+   */
+  standardConformingStrings?: boolean;
 
   /**
    * Sets global permanent hooks.
@@ -488,6 +523,24 @@ export class Sequelize extends Hooks {
   public static afterUpdate(fn: (instance: Model, options: UpdateOptions) => void): void;
 
   /**
+   * A hook that is run before creating or updating a single instance, It proxies `beforeCreate` and `beforeUpdate`
+   *
+   * @param name
+   * @param fn A callback function that is called with instance, options
+   */
+  public static beforeSave(name: string, fn: (instance: Model, options: UpdateOptions | CreateOptions) => void): void;
+  public static beforeSave(fn: (instance: Model, options: UpdateOptions | CreateOptions) => void): void;
+
+  /**
+   * A hook that is run after creating or updating a single instance, It proxies `afterCreate` and `afterUpdate`
+   *
+   * @param name
+   * @param fn A callback function that is called with instance, options
+   */
+  public static afterSave(name: string, fn: (instance: Model, options: UpdateOptions | CreateOptions) => void): void;
+  public static afterSave(fn: (instance: Model, options: UpdateOptions | CreateOptions) => void): void;
+
+  /**
    * A hook that is run before creating instances in bulk
    *
    * @param name
@@ -594,10 +647,10 @@ export class Sequelize extends Hooks {
    */
   public static afterFind(
     name: string,
-    fn: (instancesOrInstance: Model[] | Model, options: FindOptions) => void
+    fn: (instancesOrInstance: Model[] | Model | null, options: FindOptions) => void
   ): void;
   public static afterFind(
-    fn: (instancesOrInstance: Model[] | Model, options: FindOptions) => void
+    fn: (instancesOrInstance: Model[] | Model | null, options: FindOptions) => void
   ): void;
 
   /**
@@ -900,9 +953,9 @@ export class Sequelize extends Hooks {
    */
   public afterFind(
     name: string,
-    fn: (instancesOrInstance: Model[] | Model, options: FindOptions) => void
+    fn: (instancesOrInstance: Model[] | Model | null, options: FindOptions) => void
   ): void;
-  public afterFind(fn: (instancesOrInstance: Model[] | Model, options: FindOptions) => void): void;
+  public afterFind(fn: (instancesOrInstance: Model[] | Model | null, options: FindOptions) => void): void;
 
   /**
    * A hook that is run before a define call
@@ -1113,6 +1166,11 @@ export class Sequelize extends Hooks {
   ): Promise<M[]>;
   public query<T extends object>(sql: string | { query: string; values: unknown[] }, options: QueryOptionsWithType<QueryTypes.SELECT>): Promise<T[]>;
   public query(sql: string | { query: string; values: unknown[] }, options?: QueryOptions | QueryOptionsWithType<QueryTypes.RAW>): Promise<unknown[]>;
+
+  /**
+   * Get the fn for random based on the dialect
+   */
+  public random(): Fn;
 
   /**
    * Execute a query which would set an environment or user variable. The variables are set per connection,

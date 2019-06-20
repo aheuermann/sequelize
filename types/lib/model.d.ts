@@ -16,10 +16,11 @@ import { ValidationOptions } from './instance-validator';
 import { ModelManager } from './model-manager';
 import Op = require('./operators');
 import { Promise } from './promise';
-import { QueryOptions } from './query-interface';
+import { QueryOptions, IndexesOptions } from './query-interface';
 import { Config, Options, Sequelize, SyncOptions } from './sequelize';
 import { Transaction } from './transaction';
 import { Col, Fn, Literal, Where } from './utils';
+import { IndexHints } from '..';
 
 export interface Logging {
   /**
@@ -31,6 +32,15 @@ export interface Logging {
    * Pass query execution time in milliseconds as second argument to logging function (options.logging).
    */
   benchmark?: boolean;
+}
+
+export interface Poolable {
+  /**
+   * Force the query to use the write pool, regardless of the query type.
+   *
+   * @default false
+   */
+  useMaster?: boolean;
 }
 
 export interface Transactionable {
@@ -124,8 +134,10 @@ export interface AnyOperator {
 
 /** Undocumented? */
 export interface AllOperator {
-  [Op.all]: (string | number)[];
+  [Op.all]: (string | number | Date | Literal)[];
 }
+
+export type Rangable = [number, number] | [Date, Date] | Literal;
 
 /**
  * Operators that can be used in WhereOptions
@@ -192,21 +204,21 @@ export interface WhereOperators {
    *
    * Example: `[Op.overlap]: [1, 2]` becomes `&& [1, 2]`
    */
-  [Op.overlap]?: [number, number] | Literal;
+  [Op.overlap]?: Rangable;
 
   /**
    * PG array contains operator
    *
    * Example: `[Op.contains]: [1, 2]` becomes `@> [1, 2]`
    */
-  [Op.contains]?: [number, number] | [Date, Date] | Literal;
+  [Op.contains]?: Rangable;
 
   /**
    * PG array contained by operator
    *
    * Example: `[Op.contained]: [1, 2]` becomes `<@ [1, 2]`
    */
-  [Op.contained]?: [number, number] | [Date, Date] | Literal;
+  [Op.contained]?: Rangable;
 
   /** Example: `[Op.gt]: 6,` becomes `> 6` */
   [Op.gt]?: number | string | Date | Literal;
@@ -239,39 +251,68 @@ export interface WhereOperators {
 
   /**
    * MySQL/PG only
-   * 
+   *
    * Matches regular expression, case sensitive
-   * 
+   *
    * Example: `[Op.regexp]: '^[h|a|t]'` becomes `REGEXP/~ '^[h|a|t]'`
    */
   [Op.regexp]?: string;
 
   /**
    * MySQL/PG only
-   * 
+   *
    * Does not match regular expression, case sensitive
-   * 
+   *
    * Example: `[Op.notRegexp]: '^[h|a|t]'` becomes `NOT REGEXP/!~ '^[h|a|t]'`
    */
   [Op.notRegexp]?: string;
-  
+
   /**
    * PG only
-   * 
+   *
    * Matches regular expression, case insensitive
-   * 
+   *
    * Example: `[Op.iRegexp]: '^[h|a|t]'` becomes `~* '^[h|a|t]'`
    */
   [Op.iRegexp]?: string;
 
   /**
    * PG only
-   * 
+   *
    * Does not match regular expression, case insensitive
-   * 
+   *
    * Example: `[Op.notIRegexp]: '^[h|a|t]'` becomes `!~* '^[h|a|t]'`
    */
   [Op.notIRegexp]?: string;
+
+  /**
+   * PG only
+   *
+   * Forces the operator to be strictly left eg. `<< [a, b)`
+   */
+  [Op.strictLeft]?: Rangable;
+
+  /**
+   * PG only
+   *
+   * Forces the operator to be strictly right eg. `>> [a, b)`
+   */
+  [Op.strictRight]?: Rangable;
+
+  /**
+   * PG only
+   *
+   * Forces the operator to not extend the left eg. `&> [1, 2)`
+   */
+  [Op.noExtendLeft]?: Rangable;
+
+  /**
+   * PG only
+   *
+   * Forces the operator to not extend the left eg. `&< [1, 2)`
+   */
+  [Op.noExtendRight]?: Rangable;
+
 }
 
 /** Example: `[Op.or]: [{a: 5}, {a: 6}]` becomes `(a = 5 OR a = 6)` */
@@ -340,7 +381,11 @@ export type Includeable = typeof Model | Association | IncludeOptions | { all: t
 /**
  * Complex include options
  */
-export interface IncludeOptions extends Filterable, Projectable {
+export interface IncludeOptions extends Filterable, Projectable, Paranoid {
+  /**
+   * Mark the include as duplicating, will prevent a subquery from being used.
+   */
+  duplicating?: boolean;
   /**
    * The model you want to eagerly load
    */
@@ -432,12 +477,26 @@ export type FindAttributeOptions =
       include: (string | ProjectionAlias)[];
     };
 
+export interface IndexHint {
+  type: IndexHints;
+  values: string[];
+}
+
+export interface IndexHintable {
+  /**
+   * MySQL only.
+   */
+  indexHints?: IndexHint[];
+}
+
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+
 /**
  * Options that are passed to any model creating a SELECT query
  *
  * A hash of options to describe the scope of the search
  */
-export interface FindOptions extends QueryOptions, Filterable, Projectable, Paranoid {
+export interface FindOptions extends QueryOptions, Filterable, Projectable, Paranoid, IndexHintable {
   /**
    * A list of associations to eagerly load using a left join. Supported is either
    * `{ include: [ Model1, Model2, ...]}`, `{ include: [{ model: Model1, as: 'Alias' }]}` or
@@ -503,7 +562,7 @@ export interface NonNullFindOptions extends FindOptions {
 /**
  * Options for Model.count method
  */
-export interface CountOptions extends Logging, Transactionable, Filterable, Projectable, Paranoid {
+export interface CountOptions extends Logging, Transactionable, Filterable, Projectable, Paranoid, Poolable {
   /**
    * Include options. See `find` for details
    */
@@ -585,6 +644,13 @@ export interface CreateOptions extends BuildOptions, Logging, Silent, Transactio
    * On Duplicate
    */
   onDuplicate?: string;
+
+  /**
+   * If false, validations won't be run.
+   *
+   * @default true
+   */
+  validate?: boolean;
 }
 
 /**
@@ -1079,45 +1145,7 @@ export interface ModelValidateOptions {
 /**
  * Interface for indexes property in InitOptions
  */
-export interface ModelIndexesOptions {
-  /**
-   * The name of the index. Defaults to model name + _ + fields concatenated
-   */
-  name?: string;
-
-  /**
-   * Index type. Only used by mysql. One of `UNIQUE`, `FULLTEXT` and `SPATIAL`
-   */
-  index?: string;
-
-  /**
-   * The method to create the index by (`USING` statement in SQL). BTREE and HASH are supported by mysql and
-   * postgres, and postgres additionally supports GIST and GIN.
-   */
-  method?: string;
-
-  /**
-   * Should the index by unique? Can also be triggered by setting type to `UNIQUE`
-   *
-   * @default false
-   */
-  unique?: boolean;
-
-  /**
-   * PostgreSQL will build the index without taking any write locks. Postgres only
-   *
-   * @default false
-   */
-  concurrently?: boolean;
-
-  /**
-   * An array of the fields to index. Each field can either be a string containing the name of the field,
-   * a sequelize object (e.g `sequelize.fn`), or an object with the following attributes: `attribute`
-   * (field name), `length` (create a prefix index of length chars), `order` (the direction the column
-   * should be sorted in), `collate` (the collation (sort order) for the column)
-   */
-  fields?: (string | { attribute: string; length: number; order: string; collate: string })[];
-}
+export type ModelIndexesOptions = IndexesOptions
 
 /**
  * Interface for name property in InitOptions
@@ -1645,10 +1673,19 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
    */
   public static scope<M extends { new (): Model }>(
     this: M,
-    options?: string | string[] | ScopeOptions | WhereAttributeHash
+    options?: string | ScopeOptions | (string | ScopeOptions)[] | WhereAttributeHash
   ): M;
 
+  /**
+   * Add a new scope to the model
+   *
+   * This is especially useful for adding scopes with includes, when the model you want to
+   * include is not available at the time this model is defined. By default this will throw an
+   * error if a scope with that name already exists. Pass `override: true` in the options
+   * object to silence this error.
+   */
   public static addScope(name: string, scope: FindOptions, options?: AddScopeOptions): void;
+  public static addScope(name: string, scope: (...args: any[]) => FindOptions, options?: AddScopeOptions): void;
 
   /**
    * Search for multiple instances.
@@ -1721,12 +1758,12 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
   public static findByPk<M extends Model>(
     this: { new (): M } & typeof Model,
     identifier?: Identifier,
-    options?: FindOptions
+    options?: Omit<FindOptions, 'where'>
   ): Promise<M | null>;
   public static findByPk<M extends Model>(
     this: { new (): M } & typeof Model,
     identifier: Identifier,
-    options: NonNullFindOptions
+    options: Omit<NonNullFindOptions, 'where'>
   ): Promise<M>;
 
   /**
@@ -1888,6 +1925,15 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
   ): Promise<[M, boolean]>;
 
   /**
+   * A more performant findOrCreate that will not work under a transaction (at least not in postgres) 
+   * Will execute a find call, if empty then attempt to create, if unique constraint then attempt to find again
+   */
+  public static findCreateFind<M extends Model>(
+    this: { new (): M } & typeof Model,
+    options: FindOrCreateOptions
+  ): Promise<[M, boolean]>;
+
+  /**
    * Insert or update a single row. An update will be executed if a row which matches the supplied values on
    * either the primary key or a unique key is found. Note that the unique index must be defined in your
    * sequelize model and not just in the table. Otherwise you may experience a unique constraint violation,
@@ -1909,8 +1955,14 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
   public static upsert<M extends Model>(
     this: { new (): M } & typeof Model,
     values: object,
-    options?: UpsertOptions
+    options?: UpsertOptions & { returning?: false | undefined }
   ): Promise<boolean>;
+
+  public static upsert<M extends Model> (
+    this: { new (): M } & typeof Model,
+    values: object,
+    options?: UpsertOptions & { returning: true }
+  ): Promise<[ M, boolean ]>;
 
   /**
    * Create and insert multiple instances in bulk.
@@ -2124,6 +2176,38 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
   ): void;
 
   /**
+   * A hook that is run before creating or updating a single instance, It proxies `beforeCreate` and `beforeUpdate`
+   *
+   * @param name
+   * @param fn A callback function that is called with instance, options
+   */
+  public static beforeSave<M extends Model>(
+    this: { new (): M } & typeof Model,
+    name: string,
+    fn: (instance: M, options: UpdateOptions | SaveOptions) => HookReturn
+  ): void;
+  public static beforeSave<M extends Model>(
+    this: { new (): M } & typeof Model,
+    fn: (instance: M, options: UpdateOptions | SaveOptions) => HookReturn
+  ): void;
+
+  /**
+   * A hook that is run after creating or updating a single instance, It proxies `afterCreate` and `afterUpdate`
+   *
+   * @param name
+   * @param fn A callback function that is called with instance, options
+   */
+  public static afterSave<M extends Model>(
+    this: { new (): M } & typeof Model,
+    name: string,
+    fn: (instance: M, options: UpdateOptions | SaveOptions) => HookReturn
+  ): void;
+  public static afterSave<M extends Model>(
+    this: { new (): M } & typeof Model,
+    fn: (instance: M, options: UpdateOptions | SaveOptions) => HookReturn
+  ): void;
+
+  /**
    * A hook that is run before creating instances in bulk
    *
    * @param name
@@ -2236,11 +2320,11 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
   public static afterFind<M extends Model>(
     this: { new (): M } & typeof Model,
     name: string,
-    fn: (instancesOrInstance: M[] | M, options: FindOptions) => HookReturn
+    fn: (instancesOrInstance: M[] | M | null, options: FindOptions) => HookReturn
   ): void;
   public static afterFind<M extends Model>(
     this: { new (): M } & typeof Model,
-    fn: (instancesOrInstance: M[] | M, options: FindOptions) => HookReturn
+    fn: (instancesOrInstance: M[] | M | null, options: FindOptions) => HookReturn
   ): void;
 
   /**
@@ -2447,8 +2531,8 @@ export abstract class Model<T = any, T2 = any> extends Hooks {
    * @param options.plain If set to true, included instances will be returned as plain objects
    */
   public get(options?: { plain?: boolean; clone?: boolean }): object;
-  public get(key: string, options?: { plain?: boolean; clone?: boolean }): unknown;
   public get<K extends keyof this>(key: K, options?: { plain?: boolean; clone?: boolean }): this[K];
+  public get(key: string, options?: { plain?: boolean; clone?: boolean }): unknown;
 
   /**
    * Set is used to update values on the instance (the sequelize representation of the instance that is,
