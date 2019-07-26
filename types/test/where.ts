@@ -1,4 +1,4 @@
-import { AndOperator, fn, Model, Op, OrOperator, Sequelize, WhereOperators, WhereOptions, where as whereFn } from 'sequelize';
+import { AndOperator, fn, Model, Op, OrOperator, Sequelize, WhereOperators, WhereOptions, literal, where as whereFn } from 'sequelize';
 import Transaction from '../lib/transaction';
 
 class MyModel extends Model {
@@ -7,7 +7,7 @@ class MyModel extends Model {
 
 let where: WhereOptions;
 
-// From http://docs.sequelizejs.com/en/v4/docs/querying/
+// From https://sequelize.org/master/en/v4/docs/querying/
 
 // Operators
 
@@ -140,7 +140,7 @@ MyModel.findOne({
 MyModel.destroy({ where });
 MyModel.update({ hi: 1 }, { where });
 
-// From http://docs.sequelizejs.com/en/v4/docs/models-usage/
+// From https://sequelize.org/master/en/v4/docs/models-usage/
 
 // find multiple entries
 MyModel.findAll().then(projects => {
@@ -265,6 +265,13 @@ where = {
 where = whereFn('test', {
   [Op.gt]: new Date(),
 });
+
+// Literal as where
+where = literal('true')
+
+MyModel.findAll({
+    where: literal('true')
+})
 
 // Where as having option
 MyModel.findAll({

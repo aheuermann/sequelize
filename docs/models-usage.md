@@ -2,7 +2,7 @@
 
 ## Data retrieval / Finders
 
-Finder methods are intended to query data from the database. They do *not* return plain objects but instead return model instances. Because finder methods return model instances you can call any model instance member on the result as described in the documentation for [*instances*](/manual/instances.html).
+Finder methods are intended to query data from the database. They do *not* return plain objects but instead return model instances. Because finder methods return model instances you can call any model instance member on the result as described in the documentation for [*instances*](instances.html).
 
 In this document we'll explore what finder methods can do:
 
@@ -35,6 +35,8 @@ Project.findOne({
 The method `findOrCreate` can be used to check if a certain element already exists in the database. If that is the case the method will result in a respective instance. If the element does not yet exist, it will be created.
 
 Let's assume we have an empty database with a `User` model which has a `username` and a `job`.
+
+`where` option will be appended to `defaults` for create case.
 
 ```js
 User

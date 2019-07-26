@@ -71,7 +71,7 @@ Foo.init({
    }
  },
 
- // It is possible to add coments on columns for MySQL, PostgreSQL and MSSQL only
+ // It is possible to add comments on columns for MySQL, PostgreSQL and MSSQL only
  commentMe: {
    type: Sequelize.INTEGER,
 
@@ -132,7 +132,7 @@ Sequelize.Deferrable.NOT
 ```
 
 The last option is the default in PostgreSQL and won't allow you to dynamically change
-the rule in a transaction. See [the transaction section](/manual/transactions.html#options) for further information.
+the rule in a transaction. See [the transaction section](transactions.html#options) for further information.
 
 ## Getters & setters
 
@@ -710,10 +710,10 @@ User.init({}, {
       }
     },
 
-    // A BTREE index with a ordered field
+    // A BTREE index with an ordered field
     {
       name: 'title_index',
-      method: 'BTREE',
+      using: 'BTREE',
       fields: ['author', {attribute: 'title', collate: 'en_US', order: 'DESC', length: 5}]
     }
   ],
@@ -721,7 +721,7 @@ User.init({}, {
 });
 ```
 
-[0]: /manual/models-definition.html#configuration
-[1]: /manual/data-types.html
+[0]: models-definition.html#configuration
+[1]: data-types.html
 [3]: https://github.com/chriso/validator.js
 [5]: /docs/final/misc#asynchronicity

@@ -59,7 +59,7 @@ Before continuing further we will need to tell CLI how to connect to database. T
 }
 ```
 
-Now edit this file and set correct database credentials and dialect.
+Now edit this file and set correct database credentials and dialect. The keys of the objects(ex. "development") are used on `model/index.js` for matching `process.env.NODE_ENV` (When undefined, "development" is a default value.).
 
 **Note:** _If your database doesn't exists yet, you can just call `db:create` command. With proper access it will create that database for you._
 
@@ -139,7 +139,9 @@ module.exports = {
     return queryInterface.bulkInsert('Users', [{
         firstName: 'John',
         lastName: 'Doe',
-        email: 'demo@demo.com'
+        email: 'demo@demo.com',
+        createdAt: new Date(),
+        updatedAt: new Date()
       }], {});
   },
 
@@ -248,6 +250,39 @@ module.exports = {
         })
     }
 };
+```
+
+The next is an example of a migration that has a foreign key. You can use references to specify a foreign key:
+
+```js
+module.exports = {
+  up: (queryInterface, Sequelize) => {
+    return queryInterface.createTable('Person', {
+      name: Sequelize.STRING,
+      isBetaMember: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+      },
+      userId: {
+        type: Sequelize.INTEGER,
+        references: {
+          model: {
+            tableName: 'users',
+            schema: 'schema'
+          }
+          key: 'id'
+        },
+        allowNull: false
+      },
+    });
+  },
+
+  down: (queryInterface, Sequelize) => {
+    return queryInterface.dropTable('Person');
+  }
+}
+
 ```
 
 ### The `.sequelizerc` File
@@ -563,4 +598,4 @@ Using `queryInterface` object described before you can change database schema. T
 
 [0]: https://github.com/sequelize/cli
 [1]: https://github.com/sequelize/umzug
-[2]: /class/lib/query-interface.js~QueryInterface.html
+[2]: ../class/lib/query-interface.js~QueryInterface.html
